@@ -1337,6 +1337,47 @@ class Client
 
         return RequestUtil::parseResponseJson($response->body);
     }
+    
+    /**
+	 * Create a shared link with custom settings.
+	 * If no settings are given then the default visibility is RequestedVisibility.public (The resolved visibility, though, may depend on other aspects such as team and shared folder settings).
+	 *
+	 * See <a href="https://www.dropbox.com/developers/documentation/http/documentation#sharing-create_shared_link_with_settings">/media</a>.
+	 *
+	 * @param string $path
+	 *    The Dropbox path to a file or folder (UTF-8).
+	 *
+	 * @param array $settings
+	 *    The requested settings for the newly created shared link This field is optional.
+	 *    ---
+	 *    requested_visibility (public|team_only|password) => The requested access for this shared link. This field is optional.
+	 *		link_password (string) => If requested_visibility is RequestedVisibility.password this is needed to specify the password to access the link. This field is optional.
+	 *		expires (timestamp) => Expiration time of the shared link. By default the link won't expire. This field is optional.
+	 *
+	 * @return array
+	 *    A <code>list(string $url, \DateTime $expires)</code> where <code>$url</code> is a direct
+	 *    link to the requested file and <code>$expires</code> is a standard PHP
+	 *    <code>\DateTime</code> representing when <code>$url</code> will stop working.
+	 *
+	 * @throws Exception
+	 */
+	function createSharedLink($path, $settings=['requested_visibility' => 'public'])
+	{
+		Path::checkArgNonRoot("path", $path);
+
+		$response = $this->doPost(
+														$this->apiHost,
+														$this->appendFilePath("2/sharing/create_shared_link_with_settings", $path),
+														$settings);
+
+		if ($response->statusCode === 404) return null;
+		if ($response->statusCode !== 200) throw RequestUtil::unexpectedStatus($response);
+
+		$j = RequestUtil::parseResponseJson($response->body);
+		$url = self::getField($j, "url");
+		$expires = self::parseDateTime(self::getField($j, "expires"));
+		return array($url, $expires);
+	}
 
     /**
      * Build a URL for making a GET or PUT request.  Will add the "locale"
